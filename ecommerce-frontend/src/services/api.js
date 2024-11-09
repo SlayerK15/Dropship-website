@@ -14,7 +14,10 @@ const api = axios.create({
 // Add request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth headers here if needed
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -22,26 +25,58 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor
+// Add response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error('Response Error:', error.response.data);
-      throw new Error(error.response.data.message || 'An error occurred');
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('Request Error:', error.request);
-      throw new Error('No response received from server');
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error('Error:', error.message);
-      throw new Error('Error setting up request');
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        const response = await axios.post(`${API_URL}/token/refresh/`, {
+          refresh: refreshToken
+        });
+
+        const { access } = response.data;
+        localStorage.setItem('access_token', access);
+        originalRequest.headers.Authorization = `Bearer ${access}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
     }
+    return Promise.reject(error);
   }
 );
+
+// Auth related API calls
+export const authAPI = {
+  login: async (credentials) => {
+    const response = await api.post('/token/', credentials);
+    return response.data;
+  },
+
+  register: async (userData) => {
+    const response = await api.post('/register/', userData);
+    return response.data;
+  },
+
+  getProfile: async () => {
+    const response = await api.get('/users/me/');
+    return response.data;
+  },
+
+  updateProfile: async (userData) => {
+    const response = await api.patch('/users/me/', userData);
+    return response.data;
+  },
+};
 
 export const productAPI = {
   getAllProducts: async (params = {}) => {

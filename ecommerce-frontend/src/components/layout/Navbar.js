@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { ShoppingBag } from 'lucide-react';
+import { useCart } from '../../context/CartContext';
 
 const Navbar = () => {
+  const { getCartItemsCount } = useCart();
+  const cartCount = getCartItemsCount();
+
   return (
     <nav className="bg-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,10 +33,15 @@ const Navbar = () => {
           <div className="flex items-center">
             <Link
               to="/cart"
-              className="p-2 text-gray-400 hover:text-gray-500"
+              className="relative p-2 text-gray-400 hover:text-gray-500"
               aria-label="Shopping Cart"
             >
-              <ShoppingCartIcon className="h-6 w-6" aria-hidden="true" />
+              <ShoppingBag className="h-6 w-6" aria-hidden="true" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>
